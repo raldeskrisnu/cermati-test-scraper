@@ -8,6 +8,8 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @RestController
@@ -18,7 +20,12 @@ public class ScrapperController {
     ScrapperService scrapperService;
 
     @GetMapping(path = "/{country}")
-    public Set<JobDTO> getVehicleByModel(@PathVariable String country) {
+    public Map<String, List<JobDTO>> getJobsByCountry(@PathVariable String country) {
         return  scrapperService.getJobDataByCountry(country);
     }
+
+//    @GetMapping(path = "/allJobs")
+//    public Map<String, List<JobDTO>> getJobs(@PathVariable String country) {
+//        return  scrapperService.getJobDataByCountry(country);
+//    }
 }

@@ -15,5 +15,5 @@ public class JobDTO {
 
     String location;
 
-    String postedBy;
+    String poster;
 }

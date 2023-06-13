@@ -1,19 +1,26 @@
 package com.raldes.webscrapping.service;
 
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializerProvider;
+import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.raldes.webscrapping.model.JobDTO;
+import com.raldes.webscrapping.utils.DtoNullKeySerializer;
+import com.raldes.webscrapping.utils.JsonRunnable;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
+import java.io.*;
+import java.util.*;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 @Service
 public class ScrapperServiceImpl implements ScrapperService {
@@ -21,18 +28,21 @@ public class ScrapperServiceImpl implements ScrapperService {
     @Value("https://www.cermati.com/karir")
     String urls;
 
+    private static Map<String, List<JobDTO>> departmentJobs = new HashMap<>();
+
     @Override
-    public Set<JobDTO> getJobDataByCountry(String jobData) {
-        Set<JobDTO> responseData = new HashSet<>();
+    public Map<String, List<JobDTO>> getJobDataByCountry(String jobData) {
 
         if(urls.contains("cermati")) {
-            extractData(responseData, urls);
+            extractData(urls);
         }
 
-        return responseData;
+        return departmentJobs;
     }
 
-    private void extractData(Set<JobDTO> jobDTOS, String urls) {
+    private void extractData(String urls) {
+        List<String[]> jobList = new ArrayList<>();
+
         try {
             Document document = Jsoup.connect(urls).get();
             Element element = document.getElementById("initials");
@@ -53,17 +63,44 @@ public class ScrapperServiceImpl implements ScrapperService {
                 jobDeptURLPoster[1] = currJob.getString("ref");
 
                 try {
-                    // get poster name if present
                     jobDeptURLPoster[2] = currJob.getJSONObject("creator").getString("name");
                 } catch (Exception e) {
                     jobDeptURLPoster[2] = "N/A";
                 }
 
-                System.out.println(jobDeptURLPoster);
+                jobList.add(jobDeptURLPoster);
+            }
+
+            ExecutorService executor = Executors.newFixedThreadPool(4); // 4 threads
+            for (String[] job: jobList) {
+                executor.submit(new JsonRunnable(job));
+            }
+            executor.shutdown();
+
+            try {
+                executor.awaitTermination(1, TimeUnit.DAYS);
+            } catch (InterruptedException ignored) {
+                ignored.printStackTrace();
+            }
+
+            ObjectMapper mapper = new ObjectMapper();
+            mapper.getSerializerProvider().setNullKeySerializer(new DtoNullKeySerializer());
+
+            try {
+                mapper.writeValue(new File("solution.json"), departmentJobs);
+            } catch (IOException e) {
+                e.printStackTrace();
             }
 
         } catch (IOException exception) {
             System.out.println(exception);
         }
+    }
+
+    public static synchronized void addJobToDepartment(JobDTO job, String department) {
+        if(department != null && job != null) {
+            departmentJobs.computeIfAbsent(department, k -> new ArrayList<>()).add(job);
+        }
+
     }
 }
