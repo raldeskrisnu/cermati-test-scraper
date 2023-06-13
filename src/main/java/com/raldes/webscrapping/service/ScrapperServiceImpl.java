@@ -1,10 +1,6 @@
 package com.raldes.webscrapping.service;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializerProvider;
-import com.fasterxml.jackson.databind.ser.std.StdSerializer;
 import com.raldes.webscrapping.model.JobDTO;
 import com.raldes.webscrapping.utils.DtoNullKeySerializer;
 import com.raldes.webscrapping.utils.JsonRunnable;
@@ -31,16 +27,16 @@ public class ScrapperServiceImpl implements ScrapperService {
     private static Map<String, List<JobDTO>> departmentJobs = new HashMap<>();
 
     @Override
-    public Map<String, List<JobDTO>> getJobDataByCountry(String jobData) {
+    public Map<String, List<JobDTO>> getJobDataByCountry(String country) {
 
         if(urls.contains("cermati")) {
-            extractData(urls);
+            extractData(urls, country);
         }
 
         return departmentJobs;
     }
 
-    private void extractData(String urls) {
+    private void extractData(String urls, String country) {
         List<String[]> jobList = new ArrayList<>();
 
         try {
@@ -63,22 +59,23 @@ public class ScrapperServiceImpl implements ScrapperService {
                 jobDeptURLPoster[1] = currJob.getString("ref");
 
                 try {
-                    jobDeptURLPoster[2] = currJob.getJSONObject("creator").getString("name");
+                    jobDeptURLPoster[2] = currJob.getJSONObject("creator")
+                            .getString("name");
                 } catch (Exception e) {
-                    jobDeptURLPoster[2] = "N/A";
+                    jobDeptURLPoster[2] = "";
                 }
 
                 jobList.add(jobDeptURLPoster);
             }
 
-            ExecutorService executor = Executors.newFixedThreadPool(4); // 4 threads
+            ExecutorService executorService = Executors.newFixedThreadPool(4); // 4 threads
             for (String[] job: jobList) {
-                executor.submit(new JsonRunnable(job));
+                executorService.submit(new JsonRunnable(job, country));
             }
-            executor.shutdown();
+            executorService.shutdown();
 
             try {
-                executor.awaitTermination(1, TimeUnit.DAYS);
+                executorService.awaitTermination(1, TimeUnit.DAYS);
             } catch (InterruptedException ignored) {
                 ignored.printStackTrace();
             }
@@ -97,7 +94,7 @@ public class ScrapperServiceImpl implements ScrapperService {
         }
     }
 
-    public static synchronized void addJobToDepartment(JobDTO job, String department) {
+    public static synchronized void addDepartment(JobDTO job, String department) {
         if(department != null && job != null) {
             departmentJobs.computeIfAbsent(department, k -> new ArrayList<>()).add(job);
         }

@@ -9,5 +9,5 @@ import java.util.Set;
 
 public interface ScrapperService {
 
-    Map<String, List<JobDTO>> getJobDataByCountry(String jobData);
+    Map<String, List<JobDTO>> getJobDataByCountry(String country);
 }

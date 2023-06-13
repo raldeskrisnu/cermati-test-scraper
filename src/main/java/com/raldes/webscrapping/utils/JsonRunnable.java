@@ -10,14 +10,21 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.URL;
 
-import static com.raldes.webscrapping.service.ScrapperServiceImpl.addJobToDepartment;
+import static com.raldes.webscrapping.service.ScrapperServiceImpl.addDepartment;
 
 public class JsonRunnable implements Runnable {
 
     private String[] arrayJobs;
 
+    private String jobCountry;
+
     public JsonRunnable(String[] arrayJobs) {
         this.arrayJobs = arrayJobs;
+    }
+
+    public JsonRunnable(String[] arrayJobs, String jobCountry) {
+        this.arrayJobs = arrayJobs;
+        this.jobCountry = jobCountry;
     }
 
     @Override
@@ -25,6 +32,8 @@ public class JsonRunnable implements Runnable {
         String department = arrayJobs[0];
         String url = arrayJobs[1];
         String urlPoster = arrayJobs[2];
+        String jobDescription = "";
+        String jobQualification = "";
 
         try {
             InputStream inputStream = new URL(url).openStream();
@@ -42,26 +51,26 @@ public class JsonRunnable implements Runnable {
             JSONObject jsonObject = new JSONObject(stringBuilder.toString());
             System.out.println(jsonObject);
 
-            String jobDescription = jsonObject.getJSONObject("jobAd")
+            jobDescription = jsonObject.getJSONObject("jobAd")
                     .getJSONObject("sections")
                     .getJSONObject("jobDescription")
                     .getString("text");
-            String jobQualification = jsonObject.getJSONObject("jobAd")
+            jobQualification = jsonObject.getJSONObject("jobAd")
                     .getJSONObject("sections")
                     .getJSONObject("qualifications")
                     .getString("text");
             String country = jsonObject.getJSONObject("location").getString("country");
             country = (country.equals("in")) ? ", India": (country.equals("id")?", Indonesia":"");
-
-            JobDTO jobObject = new JobDTO();
-            jobObject.setDescription(TextUtils.getTexts(jobDescription));
-            jobObject.setQualification(TextUtils.getTexts(jobQualification));
-            jobObject.setTitle(jsonObject.getString("name"));
-            jobObject.setPoster(urlPoster);
-            jobObject.setLocation(jsonObject.getJSONObject("location").getString("city") + country);
-
-            addJobToDepartment(jobObject, department);
-            inputStream.close();
+            if(jobCountry.equalsIgnoreCase(country.replace(", ", ""))) {
+                JobDTO jobObject = new JobDTO();
+                jobObject.setDescription(TextUtils.getTexts(jobDescription));
+                jobObject.setQualification(TextUtils.getTexts(jobQualification));
+                jobObject.setTitle(jsonObject.getString("name"));
+                jobObject.setPoster(urlPoster);
+                jobObject.setLocation(jsonObject.getJSONObject("location").getString("city") + country);
+                addDepartment(jobObject, department);
+                inputStream.close();
+            }
         } catch (IOException | JSONException e) {
             e.printStackTrace();
         }
